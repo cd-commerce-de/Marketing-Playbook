@@ -3023,11 +3023,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       setSyncStatus('online');
       showToast('Saved', 'success');
     } catch (err) {
-      console.error('Save failed:', err);
+      const msg = err?.message || err?.error_description || err?.details || JSON.stringify(err);
+      console.error('Save failed:', msg, err);
       offlineQueue.push(record);
       localStorage.setItem('playbook_offline_queue', JSON.stringify(offlineQueue));
       setSyncStatus('offline');
-      showToast('Offline — edit queued locally', 'error');
+      showToast('Save failed: ' + msg, 'error');
     }
   }
 
@@ -3066,7 +3067,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       applyRevertsToDOM();
       setSyncStatus('online');
     } catch (err) {
-      console.error('Load failed:', err);
+      const msg = err?.message || err?.error_description || err?.details || JSON.stringify(err);
+      console.error('Load history failed:', msg, err);
+      showToast('Load failed: ' + msg, 'error');
       setSyncStatus('error');
     }
   }
