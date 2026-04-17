@@ -2765,10 +2765,7 @@ body.edit-mode [data-editable][contenteditable="true"] {
   <div>Marketing Playbook · Internal document · Confidential</div>
 </footer>
 
-<!-- ================= SUPABASE CLIENT ================= -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<!-- ================= EDIT MODE + HISTORY ================= -->
+<!-- ================= EDIT MODE + HISTORY (uses Supabase REST API via fetch) ================= -->
 <script>
 // ============================================================
 // CONFIGURATION — replace these with your Supabase project
@@ -2799,10 +2796,41 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   'use strict';
 
   const isConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL_HERE' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY_HERE';
-  let supabase = null;
-  if (isConfigured && window.supabase) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  }
+
+  // Raw REST API wrapper — avoids the Supabase JS client DataCloneError issue
+  const api = {
+    baseHeaders: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json'
+    },
+    async select(table, query = '') {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+        method: 'GET',
+        headers: this.baseHeaders
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+      return res.json();
+    },
+    async insert(table, row) {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+        method: 'POST',
+        headers: { ...this.baseHeaders, 'Prefer': 'return=representation' },
+        body: JSON.stringify(row)
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+      return res.json();
+    },
+    async update(table, filter, changes) {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, {
+        method: 'PATCH',
+        headers: { ...this.baseHeaders, 'Prefer': 'return=representation' },
+        body: JSON.stringify(changes)
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+      return res.json();
+    }
+  };
 
   // State
   let editMode = false;
@@ -2996,12 +3024,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   // ============ SUPABASE: SAVE + LOAD ============
   async function saveEdit(edit) {
     const record = { ...edit, created_at: new Date().toISOString() };
+    const tempId = 'local-' + Date.now();
     // Optimistic local add
-    history.unshift({ ...record, id: 'local-' + Date.now(), reverted: false });
+    history.unshift({ ...record, id: tempId, reverted: false });
     renderHistory();
 
-    if (!supabase) {
-      // Not configured — queue locally
+    if (!isConfigured) {
       offlineQueue.push(record);
       localStorage.setItem('playbook_offline_queue', JSON.stringify(offlineQueue));
       showToast('Saved locally (Supabase not configured)', 'error');
@@ -3010,20 +3038,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
     setSyncStatus('syncing');
     try {
-      const { data, error } = await supabase.from('playbook_edits').insert(record).select().single();
-      if (error) throw error;
-      // Replace the local entry with the real one
-      const idx = history.findIndex(h => h.id === 'local-' + record.created_at);
-      if (idx !== -1) history[idx] = data;
-      else {
-        // fallback: reload
-        await loadHistory();
-      }
+      const data = await api.insert('playbook_edits', record);
+      // Replace optimistic entry with real one
+      const idx = history.findIndex(h => h.id === tempId);
+      if (idx !== -1 && data && data[0]) history[idx] = data[0];
       renderHistory();
       setSyncStatus('online');
       showToast('Saved', 'success');
     } catch (err) {
-      const msg = err?.message || err?.error_description || err?.details || JSON.stringify(err);
+      const msg = err?.message || JSON.stringify(err);
       console.error('Save failed:', msg, err);
       offlineQueue.push(record);
       localStorage.setItem('playbook_offline_queue', JSON.stringify(offlineQueue));
@@ -3033,12 +3056,11 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   }
 
   async function flushOfflineQueue() {
-    if (!supabase || offlineQueue.length === 0) return;
+    if (!isConfigured || offlineQueue.length === 0) return;
     setSyncStatus('syncing');
     const toSync = [...offlineQueue];
     try {
-      const { error } = await supabase.from('playbook_edits').insert(toSync);
-      if (error) throw error;
+      await api.insert('playbook_edits', toSync);
       offlineQueue = [];
       localStorage.setItem('playbook_offline_queue', JSON.stringify(offlineQueue));
       showToast(`Synced ${toSync.length} queued edits`, 'success');
@@ -3051,23 +3073,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   }
 
   async function loadHistory() {
-    if (!supabase) {
+    if (!isConfigured) {
       renderHistory();
       return;
     }
     try {
-      const { data, error } = await supabase
-        .from('playbook_edits')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(200);
-      if (error) throw error;
+      const data = await api.select('playbook_edits', 'select=*&order=created_at.desc&limit=200');
       history = data || [];
       renderHistory();
       applyRevertsToDOM();
       setSyncStatus('online');
     } catch (err) {
-      const msg = err?.message || err?.error_description || err?.details || JSON.stringify(err);
+      const msg = err?.message || JSON.stringify(err);
       console.error('Load history failed:', msg, err);
       showToast('Load failed: ' + msg, 'error');
       setSyncStatus('error');
@@ -3110,9 +3127,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       new_text: entry.old_text
     };
     // Mark the original as reverted in DB
-    if (supabase && entry.id && !String(entry.id).startsWith('local-')) {
+    if (isConfigured && entry.id && !String(entry.id).startsWith('local-')) {
       try {
-        await supabase.from('playbook_edits').update({ reverted: true }).eq('id', entry.id);
+        await api.update('playbook_edits', `id=eq.${entry.id}`, { reverted: true });
       } catch (err) {
         console.error('Mark reverted failed:', err);
       }
@@ -3180,21 +3197,13 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       showToast('Supabase not configured — edits save locally only', 'error');
       return;
     }
-    if (!window.supabase) {
-      setSyncStatus('error');
-      console.error('Supabase library failed to load');
-      return;
-    }
     loadHistory();
     flushOfflineQueue();
 
-    // Realtime subscription: listen for inserts/updates
-    supabase
-      .channel('playbook_edits_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'playbook_edits' }, () => {
-        loadHistory();
-      })
-      .subscribe();
+    // Poll for updates every 30s (replaces realtime subscription; avoids DataCloneError issue)
+    setInterval(() => {
+      loadHistory();
+    }, 30000);
   }
 
   init();
