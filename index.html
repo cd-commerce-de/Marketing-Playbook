@@ -1004,6 +1004,424 @@ body.edit-mode [data-editable][contenteditable="true"] {
   .edit-controls, .floating-edit-btn, .history-panel, .toast { display: none !important; }
   body.edit-mode [data-editable] { outline: none !important; background: transparent !important; }
 }
+
+/* ===== COMMENTS: MODE + INDICATORS ===== */
+
+/* Comment mode: selectable elements (different color from edit mode) */
+body.comment-mode [data-editable] {
+  outline: 1px dashed var(--color-neutral-300);
+  outline-offset: 2px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: outline-color 0.15s;
+}
+body.comment-mode [data-editable]:hover {
+  outline-color: #3B82F6;
+  outline-style: solid;
+}
+body.comment-mode [data-editable].comment-target {
+  outline: 2px solid #3B82F6;
+  outline-offset: 3px;
+  background: #EFF6FF;
+}
+
+/* Comment indicator (speech bubble badge) — always visible when element has open comments */
+.comment-indicator {
+  position: absolute;
+  z-index: 400;
+  background: var(--color-accent);
+  color: white;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 11px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 100px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(217, 119, 87, 0.35);
+  border: 2px solid white;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+  line-height: 1;
+}
+.comment-indicator:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(217, 119, 87, 0.45);
+}
+.comment-indicator::before {
+  content: '💬';
+  font-size: 10px;
+  filter: grayscale(1) brightness(3);
+}
+.comment-indicator.resolved-only {
+  background: var(--color-neutral-400);
+  box-shadow: 0 2px 6px rgba(148, 163, 184, 0.35);
+}
+.comment-indicator.resolved-only:hover {
+  box-shadow: 0 4px 12px rgba(148, 163, 184, 0.45);
+}
+
+/* Elements that have comments get a subtle left bar */
+[data-has-comments="true"] {
+  position: relative;
+}
+
+/* Highlight flash when navigating from side panel */
+@keyframes commentFlash {
+  0%, 100% { background-color: transparent; }
+  30%, 60% { background-color: var(--color-accent-subtle); box-shadow: 0 0 0 4px var(--color-accent-subtle); }
+}
+.comment-flash {
+  animation: commentFlash 1.6s ease;
+  border-radius: 4px;
+}
+
+/* ===== COMMENT THREAD POPUP ===== */
+.comment-popup {
+  position: absolute;
+  z-index: 1050;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  background: white;
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  border: 1px solid var(--color-neutral-200);
+  display: none;
+  overflow: hidden;
+}
+.comment-popup.visible { display: block; }
+.comment-popup-header {
+  padding: 12px 16px;
+  background: var(--color-neutral-50);
+  border-bottom: 1px solid var(--color-neutral-200);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.comment-popup-header-title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--color-neutral-500);
+}
+.comment-popup-close {
+  background: transparent;
+  border: none;
+  color: var(--color-neutral-500);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+.comment-popup-close:hover { color: var(--color-primary); }
+.comment-popup-body {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 12px 16px;
+}
+.comment-popup-footer {
+  border-top: 1px solid var(--color-neutral-200);
+  padding: 12px 16px;
+  background: var(--color-neutral-50);
+}
+
+/* Single comment item */
+.comment-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+.comment-item:last-child { border-bottom: none; }
+.comment-item.resolved .comment-item-body {
+  color: var(--color-neutral-400);
+  text-decoration: line-through;
+}
+.comment-item-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--color-neutral-500);
+  margin-bottom: 6px;
+  font-family: var(--font-heading);
+}
+.comment-item-author {
+  font-weight: 600;
+  color: var(--color-primary);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+}
+.comment-item-body {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-neutral-700);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.comment-item-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.comment-resolve-btn, .comment-reopen-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-neutral-300);
+  background: white;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-weight: 500;
+}
+.comment-resolve-btn:hover {
+  background: var(--color-success);
+  color: white;
+  border-color: var(--color-success);
+}
+.comment-reopen-btn:hover {
+  background: var(--color-accent);
+  color: white;
+  border-color: var(--color-accent);
+}
+.comment-resolved-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: var(--color-success);
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+}
+
+/* Composer */
+.comment-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.comment-composer input,
+.comment-composer textarea {
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-sm);
+  background: white;
+  color: var(--color-primary);
+  resize: vertical;
+  width: 100%;
+}
+.comment-composer input:focus,
+.comment-composer textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-subtle);
+}
+.comment-composer textarea { min-height: 64px; max-height: 180px; }
+.comment-composer-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.comment-composer-btn {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-neutral-300);
+  background: white;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+.comment-composer-btn:hover { background: var(--color-neutral-50); }
+.comment-composer-btn.primary {
+  background: var(--color-accent);
+  color: white;
+  border-color: var(--color-accent);
+}
+.comment-composer-btn.primary:hover { background: var(--color-accent-dark); border-color: var(--color-accent-dark); }
+.comment-composer-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ===== COMMENTS SIDE PANEL ===== */
+.comments-panel {
+  position: fixed;
+  top: 0;
+  right: -520px;
+  width: 480px;
+  max-width: 92vw;
+  height: 100vh;
+  background: white;
+  box-shadow: -8px 0 32px rgba(15, 23, 42, 0.15);
+  z-index: 1100;
+  transition: right 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+.comments-panel.open { right: 0; }
+.comments-panel-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-neutral-200);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-primary);
+  color: white;
+}
+.comments-panel-header h3 {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: white;
+}
+.comments-panel-close {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.comments-filter {
+  display: flex;
+  gap: 4px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--color-neutral-200);
+  background: var(--color-neutral-50);
+}
+.comments-filter-btn {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-neutral-500);
+  cursor: pointer;
+}
+.comments-filter-btn:hover { color: var(--color-primary); background: white; }
+.comments-filter-btn.active {
+  background: white;
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  font-weight: 600;
+}
+.comments-filter-count {
+  display: inline-block;
+  background: var(--color-neutral-200);
+  color: var(--color-neutral-700);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 100px;
+  margin-left: 6px;
+  font-weight: 600;
+}
+.comments-filter-btn.active .comments-filter-count {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-dark);
+}
+.comments-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 20px;
+}
+.comments-empty {
+  color: var(--color-neutral-500);
+  text-align: center;
+  padding: 48px 24px;
+  font-size: 14px;
+}
+
+/* Thread group in side panel */
+.comments-group {
+  margin-bottom: 16px;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-50);
+  overflow: hidden;
+}
+.comments-group-header {
+  padding: 10px 14px;
+  background: white;
+  border-bottom: 1px solid var(--color-neutral-200);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  gap: 8px;
+}
+.comments-group-header:hover { background: var(--color-accent-subtle); }
+.comments-group-section {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--color-accent);
+  margin-bottom: 3px;
+}
+.comments-group-snippet {
+  font-size: 12px;
+  color: var(--color-neutral-700);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.comments-group-count {
+  font-size: 11px;
+  color: var(--color-neutral-500);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.comments-group-body { padding: 6px 14px 10px; }
+
+/* Floating comment button (same pattern as floating edit button) */
+.floating-comment-btn {
+  position: absolute;
+  z-index: 500;
+  background: #3B82F6;
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+  display: none;
+  gap: 6px;
+  align-items: center;
+}
+.floating-comment-btn.visible { display: inline-flex; }
+.floating-comment-btn:hover { background: #2563EB; }
+
+@media (max-width: 600px) {
+  .comments-panel { width: 100vw; }
+  .comment-popup { width: calc(100vw - 32px); }
+}
+
+@media print {
+  .comments-panel, .comment-popup, .comment-indicator, .floating-comment-btn { display: none !important; }
+  body.comment-mode [data-editable] { outline: none !important; background: transparent !important; }
+}
 </style>
 </head>
 <body>
@@ -1012,10 +1430,13 @@ body.edit-mode [data-editable][contenteditable="true"] {
 <div class="edit-controls" id="editControls">
   <span class="sync-dot" id="syncDot" title="Offline"></span>
   <button class="edit-btn" id="editModeBtn">✏️ Edit Mode</button>
+  <button class="edit-btn" id="commentModeBtn">💬 Comment</button>
+  <button class="edit-btn" id="commentsBtn">🗨️ Comments <span id="commentsBadge" class="comments-filter-count" style="display:none;">0</span></button>
   <button class="edit-btn" id="historyBtn">📋 History</button>
 </div>
 
 <button class="floating-edit-btn" id="floatingEditBtn">✏️ Edit</button>
+<button class="floating-comment-btn" id="floatingCommentBtn">💬 Add comment</button>
 
 <!-- ================= HISTORY PANEL ================= -->
 <aside class="history-panel" id="historyPanel">
@@ -1027,6 +1448,41 @@ body.edit-mode [data-editable][contenteditable="true"] {
     <div class="history-empty">No edits yet. Turn on Edit Mode and click any text to change it.</div>
   </div>
 </aside>
+
+<!-- ================= COMMENTS PANEL ================= -->
+<aside class="comments-panel" id="commentsPanel">
+  <div class="comments-panel-header">
+    <h3>Comments</h3>
+    <button class="comments-panel-close" id="commentsPanelClose">✕</button>
+  </div>
+  <div class="comments-filter">
+    <button class="comments-filter-btn active" data-filter="open">Open <span class="comments-filter-count" id="filterCountOpen">0</span></button>
+    <button class="comments-filter-btn" data-filter="resolved">Resolved <span class="comments-filter-count" id="filterCountResolved">0</span></button>
+    <button class="comments-filter-btn" data-filter="all">All <span class="comments-filter-count" id="filterCountAll">0</span></button>
+  </div>
+  <div class="comments-panel-body" id="commentsPanelBody">
+    <div class="comments-empty">No comments yet. Turn on Comment Mode and click any text to leave a note.</div>
+  </div>
+</aside>
+
+<!-- ================= COMMENT THREAD POPUP ================= -->
+<div class="comment-popup" id="commentPopup">
+  <div class="comment-popup-header">
+    <span class="comment-popup-header-title" id="commentPopupTitle">Thread</span>
+    <button class="comment-popup-close" id="commentPopupClose">✕</button>
+  </div>
+  <div class="comment-popup-body" id="commentPopupBody"></div>
+  <div class="comment-popup-footer">
+    <div class="comment-composer">
+      <input type="text" id="commentAuthorInput" placeholder="Your name" maxlength="60" />
+      <textarea id="commentBodyInput" placeholder="Write a comment…" maxlength="2000"></textarea>
+      <div class="comment-composer-actions">
+        <button class="comment-composer-btn" id="commentCancelBtn">Cancel</button>
+        <button class="comment-composer-btn primary" id="commentSubmitBtn">Post comment</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -2853,6 +3309,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     document.body.classList.toggle('edit-mode', editMode);
     editModeBtn.classList.toggle('active', editMode);
     editModeBtn.textContent = editMode ? '✓ Editing ON' : '✏️ Edit Mode';
+    if (editMode) {
+      // Turn off comment mode if it was on
+      window.dispatchEvent(new CustomEvent('cdc:disableCommentMode'));
+    }
     if (!editMode) {
       deselect();
       if (editingEl) commitEdit();
@@ -3165,6 +3625,668 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   }
 
   init();
+
+  // Expose shared helpers + api to the comment script
+  window.cdcPlaybook = {
+    api,
+    isConfigured,
+    showToast,
+    setSyncStatus,
+    getSectionName,
+    formatTime,
+    escapeHtml
+  };
+})();
+</script>
+
+<!-- ================= COMMENTS (uses same Supabase project, table: playbook_comments) ================= -->
+<script>
+// ============================================================
+// Required Supabase table (run once in SQL editor):
+//
+// create table playbook_comments (
+//   id bigserial primary key,
+//   edit_id text not null,
+//   section text,
+//   author text,
+//   body text not null,
+//   created_at timestamptz default now(),
+//   resolved boolean default false,
+//   resolved_at timestamptz,
+//   resolved_by text
+// );
+// create index on playbook_comments (edit_id);
+// create index on playbook_comments (resolved);
+//
+// alter table playbook_comments enable row level security;
+// create policy "public read comments" on playbook_comments for select using (true);
+// create policy "public insert comments" on playbook_comments for insert with check (true);
+// create policy "public update comments" on playbook_comments for update using (true) with check (true);
+// ============================================================
+
+(function() {
+  'use strict';
+
+  // Wait for the edit script's shared namespace
+  const shared = window.cdcPlaybook;
+  if (!shared) { console.error('cdcPlaybook namespace missing — comments disabled'); return; }
+  const { api, isConfigured, showToast, getSectionName, formatTime, escapeHtml } = shared;
+
+  // ============ STATE ============
+  let commentMode = false;
+  let commentTargetEl = null;       // element currently having a comment added/viewed
+  let comments = [];                // all comments from server, newest first
+  let currentFilter = 'open';       // open | resolved | all
+  let authorName = localStorage.getItem('playbook_comment_author') || '';
+
+  // ============ DOM REFS ============
+  const commentModeBtn = document.getElementById('commentModeBtn');
+  const commentsBtn = document.getElementById('commentsBtn');
+  const commentsBadge = document.getElementById('commentsBadge');
+  const floatingCommentBtn = document.getElementById('floatingCommentBtn');
+  const commentsPanel = document.getElementById('commentsPanel');
+  const commentsPanelClose = document.getElementById('commentsPanelClose');
+  const commentsPanelBody = document.getElementById('commentsPanelBody');
+  const filterBtns = document.querySelectorAll('.comments-filter-btn');
+  const filterCountOpen = document.getElementById('filterCountOpen');
+  const filterCountResolved = document.getElementById('filterCountResolved');
+  const filterCountAll = document.getElementById('filterCountAll');
+  const commentPopup = document.getElementById('commentPopup');
+  const commentPopupTitle = document.getElementById('commentPopupTitle');
+  const commentPopupBody = document.getElementById('commentPopupBody');
+  const commentPopupClose = document.getElementById('commentPopupClose');
+  const commentAuthorInput = document.getElementById('commentAuthorInput');
+  const commentBodyInput = document.getElementById('commentBodyInput');
+  const commentCancelBtn = document.getElementById('commentCancelBtn');
+  const commentSubmitBtn = document.getElementById('commentSubmitBtn');
+  const historyPanel = document.getElementById('historyPanel');
+
+  // Prefill author if we have it
+  if (authorName) commentAuthorInput.value = authorName;
+
+  // ============ MODE COORDINATION ============
+  // Disable comment mode when edit mode is activated (edit script dispatches this)
+  window.addEventListener('cdc:disableCommentMode', () => {
+    if (commentMode) setCommentMode(false);
+  });
+
+  function setCommentMode(on) {
+    commentMode = on;
+    document.body.classList.toggle('comment-mode', on);
+    commentModeBtn.classList.toggle('active', on);
+    commentModeBtn.textContent = on ? '✓ Commenting ON' : '💬 Comment';
+    if (!on) {
+      clearCommentTarget();
+      hidePopup();
+    } else {
+      // Turn off edit mode if it was on
+      const editBtn = document.getElementById('editModeBtn');
+      if (document.body.classList.contains('edit-mode')) {
+        editBtn.click();
+      }
+    }
+  }
+
+  commentModeBtn.addEventListener('click', () => setCommentMode(!commentMode));
+
+  // ============ CLICK HANDLER: add comment in comment mode ============
+  document.addEventListener('click', (e) => {
+    // Clicks on controls, panels, popup, indicators: let them handle themselves
+    if (e.target.closest('.edit-controls')) return;
+    if (e.target.closest('.comments-panel')) return;
+    if (e.target.closest('.comment-popup')) return;
+    if (e.target.closest('.history-panel')) return;
+    if (e.target.closest('.floating-comment-btn')) return;
+    if (e.target.closest('.floating-edit-btn')) return;
+
+    // Clicking an existing comment indicator: open the thread
+    const indicator = e.target.closest('.comment-indicator');
+    if (indicator) {
+      e.preventDefault();
+      e.stopPropagation();
+      const editId = indicator.getAttribute('data-edit-id');
+      const el = document.querySelector(`[data-edit-id="${editId}"]`);
+      if (el) openThreadPopup(el, { mode: 'view' });
+      return;
+    }
+
+    if (!commentMode) return;
+
+    const el = e.target.closest('[data-editable]');
+    if (!el) {
+      clearCommentTarget();
+      hidePopup();
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    setCommentTarget(el);
+  }, true);
+
+  function setCommentTarget(el) {
+    clearCommentTarget();
+    commentTargetEl = el;
+    el.classList.add('comment-target');
+    positionFloatingCommentBtn(el);
+    floatingCommentBtn.classList.add('visible');
+  }
+
+  function clearCommentTarget() {
+    if (commentTargetEl) commentTargetEl.classList.remove('comment-target');
+    commentTargetEl = null;
+    floatingCommentBtn.classList.remove('visible');
+  }
+
+  function positionFloatingCommentBtn(el) {
+    const rect = el.getBoundingClientRect();
+    const btnTop = window.scrollY + rect.top - 40;
+    const btnLeft = window.scrollX + rect.left;
+    floatingCommentBtn.style.top = btnTop + 'px';
+    floatingCommentBtn.style.left = btnLeft + 'px';
+  }
+
+  // Reposition floating btn on scroll
+  window.addEventListener('scroll', () => {
+    if (commentTargetEl && !commentPopup.classList.contains('visible')) {
+      positionFloatingCommentBtn(commentTargetEl);
+    }
+    // Reposition indicators (they're absolutely positioned relative to document)
+    // Indicators use document coords, so no reposition needed on scroll
+  });
+
+  // ============ FLOATING BUTTON → OPEN POPUP ============
+  floatingCommentBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (commentTargetEl) openThreadPopup(commentTargetEl, { mode: 'add' });
+  });
+
+  // ============ POPUP: VIEW + ADD ============
+  function openThreadPopup(el, { mode }) {
+    commentTargetEl = el;
+    floatingCommentBtn.classList.remove('visible');
+    const editId = el.getAttribute('data-edit-id');
+    const thread = comments.filter(c => c.edit_id === editId);
+    const openCount = thread.filter(c => !c.resolved).length;
+
+    commentPopupTitle.textContent = thread.length === 0
+      ? 'New comment'
+      : `Thread · ${thread.length} ${thread.length === 1 ? 'comment' : 'comments'}${openCount ? ' · ' + openCount + ' open' : ''}`;
+
+    renderThread(commentPopupBody, thread);
+    positionPopup(el);
+    commentPopup.classList.add('visible');
+    if (mode === 'add') {
+      setTimeout(() => commentBodyInput.focus(), 50);
+    }
+  }
+
+  function positionPopup(el) {
+    // Show popup below element; if no room, above
+    const rect = el.getBoundingClientRect();
+    const popupWidth = 360;
+    const popupEstHeight = 320;
+    const viewportH = window.innerHeight;
+    const viewportW = window.innerWidth;
+
+    let top = window.scrollY + rect.bottom + 8;
+    let left = window.scrollX + rect.left;
+
+    // If overflow right → align to right edge of element
+    if (left + popupWidth > window.scrollX + viewportW - 16) {
+      left = window.scrollX + viewportW - popupWidth - 16;
+    }
+    if (left < window.scrollX + 16) left = window.scrollX + 16;
+
+    // If overflow bottom → show above
+    if (rect.bottom + popupEstHeight > viewportH - 16 && rect.top > popupEstHeight) {
+      top = window.scrollY + rect.top - popupEstHeight - 8;
+    }
+    commentPopup.style.top = top + 'px';
+    commentPopup.style.left = left + 'px';
+  }
+
+  function hidePopup() {
+    commentPopup.classList.remove('visible');
+    commentBodyInput.value = '';
+    commentTargetEl = null;
+    document.querySelectorAll('.comment-target').forEach(el => el.classList.remove('comment-target'));
+  }
+
+  commentPopupClose.addEventListener('click', hidePopup);
+  commentCancelBtn.addEventListener('click', hidePopup);
+
+  // Click outside popup closes it
+  document.addEventListener('click', (e) => {
+    if (!commentPopup.classList.contains('visible')) return;
+    if (e.target.closest('.comment-popup')) return;
+    if (e.target.closest('.comment-indicator')) return;
+    if (e.target.closest('.floating-comment-btn')) return;
+    if (e.target.closest('[data-editable]') && commentMode) return;
+    hidePopup();
+  });
+
+  // Escape closes popup
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && commentPopup.classList.contains('visible')) {
+      hidePopup();
+    }
+  });
+
+  // ============ RENDER THREAD (inside popup) ============
+  function renderThread(container, thread) {
+    if (thread.length === 0) {
+      container.innerHTML = '<div style="font-size:13px;color:var(--color-neutral-500);padding:8px 0;">No comments yet — be the first to leave a note.</div>';
+      return;
+    }
+    // Oldest first in thread view
+    const sorted = [...thread].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    container.innerHTML = sorted.map(c => renderCommentItemHTML(c)).join('');
+    wireCommentItemButtons(container);
+  }
+
+  function renderCommentItemHTML(c) {
+    const resolvedClass = c.resolved ? 'resolved' : '';
+    const resolvedTag = c.resolved
+      ? `<span class="comment-resolved-tag" title="Resolved ${c.resolved_by ? 'by ' + escapeHtml(c.resolved_by) : ''}">Resolved</span>`
+      : '';
+    const actionBtn = c.resolved
+      ? `<button class="comment-reopen-btn" data-reopen-id="${c.id}">↺ Reopen</button>`
+      : `<button class="comment-resolve-btn" data-resolve-id="${c.id}">✓ Resolve</button>`;
+    const localBadge = String(c.id).startsWith('local-')
+      ? ' <span style="font-size:10px;color:var(--color-warning);">(queued)</span>'
+      : '';
+    return `
+      <div class="comment-item ${resolvedClass}">
+        <div class="comment-item-meta">
+          <span class="comment-item-author">${escapeHtml(c.author || 'Anonymous')}${localBadge}</span>
+          <span>${formatTime(c.created_at)}${resolvedTag ? ' · ' : ''}${resolvedTag}</span>
+        </div>
+        <div class="comment-item-body">${escapeHtml(c.body)}</div>
+        <div class="comment-item-actions">${actionBtn}</div>
+      </div>
+    `;
+  }
+
+  function wireCommentItemButtons(root) {
+    root.querySelectorAll('[data-resolve-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-resolve-id');
+        const c = comments.find(x => String(x.id) === String(id));
+        if (c) resolveComment(c);
+      });
+    });
+    root.querySelectorAll('[data-reopen-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-reopen-id');
+        const c = comments.find(x => String(x.id) === String(id));
+        if (c) reopenComment(c);
+      });
+    });
+  }
+
+  // ============ SUBMIT NEW COMMENT ============
+  commentSubmitBtn.addEventListener('click', async () => {
+    const author = commentAuthorInput.value.trim();
+    const body = commentBodyInput.value.trim();
+    if (!author) {
+      commentAuthorInput.focus();
+      showToast('Please enter your name', 'error');
+      return;
+    }
+    if (!body) {
+      commentBodyInput.focus();
+      return;
+    }
+    if (!commentTargetEl) return;
+
+    // Persist author name locally for next time
+    localStorage.setItem('playbook_comment_author', author);
+    authorName = author;
+
+    const editId = commentTargetEl.getAttribute('data-edit-id');
+    const section = getSectionName(commentTargetEl);
+    const record = {
+      edit_id: editId,
+      section,
+      author,
+      body,
+      created_at: new Date().toISOString(),
+      resolved: false
+    };
+
+    // Optimistic local add
+    const tempId = 'local-' + Date.now();
+    const optimistic = { ...record, id: tempId };
+    comments.unshift(optimistic);
+    commentBodyInput.value = '';
+
+    // Re-render popup + indicators + side panel
+    const thread = comments.filter(c => c.edit_id === editId);
+    renderThread(commentPopupBody, thread);
+    commentPopupTitle.textContent = `Thread · ${thread.length} ${thread.length === 1 ? 'comment' : 'comments'}`;
+    renderIndicators();
+    renderSidePanel();
+
+    if (!isConfigured) {
+      showToast('Saved locally (Supabase not configured)', 'error');
+      return;
+    }
+
+    try {
+      const data = await api.insert('playbook_comments', record);
+      if (data && data[0]) {
+        const idx = comments.findIndex(c => c.id === tempId);
+        if (idx !== -1) comments[idx] = data[0];
+        renderIndicators();
+        renderSidePanel();
+      }
+      showToast('Comment posted', 'success');
+    } catch (err) {
+      console.error('Post comment failed:', err);
+      showToast('Post failed: ' + (err?.message || 'unknown error'), 'error');
+    }
+  });
+
+  // Submit on Cmd/Ctrl+Enter
+  commentBodyInput.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      commentSubmitBtn.click();
+    }
+  });
+
+  // ============ RESOLVE / REOPEN ============
+  async function resolveComment(c) {
+    const resolver = authorName || prompt('Your name (for resolve log):') || 'Anonymous';
+    if (authorName !== resolver) {
+      localStorage.setItem('playbook_comment_author', resolver);
+      authorName = resolver;
+      if (!commentAuthorInput.value) commentAuthorInput.value = resolver;
+    }
+    const patch = { resolved: true, resolved_at: new Date().toISOString(), resolved_by: resolver };
+    // Optimistic
+    Object.assign(c, patch);
+    refreshAll();
+
+    if (!isConfigured) { showToast('Resolved locally (Supabase not configured)', 'error'); return; }
+    if (String(c.id).startsWith('local-')) { showToast('Comment still syncing — try again in a moment', 'error'); return; }
+
+    try {
+      await api.update('playbook_comments', `id=eq.${c.id}`, patch);
+      showToast('Comment resolved', 'success');
+    } catch (err) {
+      console.error('Resolve failed:', err);
+      showToast('Resolve failed: ' + (err?.message || 'unknown'), 'error');
+    }
+  }
+
+  async function reopenComment(c) {
+    const patch = { resolved: false, resolved_at: null, resolved_by: null };
+    Object.assign(c, patch);
+    refreshAll();
+
+    if (!isConfigured) { showToast('Reopened locally', 'error'); return; }
+    if (String(c.id).startsWith('local-')) return;
+
+    try {
+      await api.update('playbook_comments', `id=eq.${c.id}`, patch);
+      showToast('Comment reopened', 'success');
+    } catch (err) {
+      console.error('Reopen failed:', err);
+      showToast('Reopen failed: ' + (err?.message || 'unknown'), 'error');
+    }
+  }
+
+  function refreshAll() {
+    renderIndicators();
+    renderSidePanel();
+    // Re-render open popup if showing
+    if (commentPopup.classList.contains('visible') && commentTargetEl) {
+      const editId = commentTargetEl.getAttribute('data-edit-id');
+      const thread = comments.filter(c => c.edit_id === editId);
+      renderThread(commentPopupBody, thread);
+      const openCount = thread.filter(c => !c.resolved).length;
+      commentPopupTitle.textContent = thread.length === 0
+        ? 'New comment'
+        : `Thread · ${thread.length} ${thread.length === 1 ? 'comment' : 'comments'}${openCount ? ' · ' + openCount + ' open' : ''}`;
+    }
+  }
+
+  // ============ INDICATORS ON ELEMENTS ============
+  function renderIndicators() {
+    // Remove existing indicators
+    document.querySelectorAll('.comment-indicator').forEach(el => el.remove());
+    document.querySelectorAll('[data-has-comments]').forEach(el => el.removeAttribute('data-has-comments'));
+
+    // Group by edit_id
+    const byEditId = {};
+    for (const c of comments) {
+      if (!byEditId[c.edit_id]) byEditId[c.edit_id] = { open: 0, resolved: 0, total: 0 };
+      byEditId[c.edit_id].total++;
+      if (c.resolved) byEditId[c.edit_id].resolved++;
+      else byEditId[c.edit_id].open++;
+    }
+
+    Object.entries(byEditId).forEach(([editId, counts]) => {
+      const el = document.querySelector(`[data-edit-id="${editId}"]`);
+      if (!el) return;
+      // Skip elements that are hidden (different tab, display:none ancestor)
+      if (el.offsetParent === null) return;
+
+      el.setAttribute('data-has-comments', 'true');
+      const indicator = document.createElement('span');
+      indicator.className = 'comment-indicator';
+      if (counts.open === 0) indicator.classList.add('resolved-only');
+      indicator.setAttribute('data-edit-id', editId);
+      indicator.textContent = counts.open > 0 ? counts.open : counts.total;
+      indicator.title = counts.open > 0
+        ? `${counts.open} open comment${counts.open === 1 ? '' : 's'}${counts.resolved ? ' · ' + counts.resolved + ' resolved' : ''}`
+        : `${counts.resolved} resolved comment${counts.resolved === 1 ? '' : 's'}`;
+      document.body.appendChild(indicator);
+      positionIndicator(indicator, el);
+    });
+
+    updateBadge();
+  }
+
+  function positionIndicator(indicator, el) {
+    const rect = el.getBoundingClientRect();
+    const viewportW = window.innerWidth;
+    const top = window.scrollY + rect.top - 10;
+    let left = window.scrollX + rect.right + 6;
+    // If indicator would overflow viewport right edge, tuck it inside the top-right of element
+    if (rect.right + 32 > viewportW) {
+      left = window.scrollX + viewportW - 38;
+    }
+    indicator.style.top = top + 'px';
+    indicator.style.left = left + 'px';
+  }
+
+  // Reposition indicators on resize (layout may change)
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => renderIndicators(), 120);
+  });
+
+  // Also reposition when tabs switch (content changes visibility)
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => setTimeout(renderIndicators, 50));
+  });
+  document.querySelectorAll('[data-jump]').forEach(c => {
+    c.addEventListener('click', () => setTimeout(renderIndicators, 50));
+  });
+
+  function updateBadge() {
+    const openCount = comments.filter(c => !c.resolved).length;
+    if (openCount > 0) {
+      commentsBadge.textContent = openCount;
+      commentsBadge.style.display = 'inline-block';
+    } else {
+      commentsBadge.style.display = 'none';
+    }
+  }
+
+  // ============ SIDE PANEL ============
+  commentsBtn.addEventListener('click', () => {
+    // Close history panel if open (avoid overlap)
+    if (historyPanel && historyPanel.classList.contains('open')) {
+      historyPanel.classList.remove('open');
+    }
+    commentsPanel.classList.toggle('open');
+    if (commentsPanel.classList.contains('open')) renderSidePanel();
+  });
+  commentsPanelClose.addEventListener('click', () => commentsPanel.classList.remove('open'));
+
+  // Close comments panel when history opens
+  const historyBtn = document.getElementById('historyBtn');
+  if (historyBtn) {
+    historyBtn.addEventListener('click', () => {
+      if (commentsPanel.classList.contains('open')) {
+        commentsPanel.classList.remove('open');
+      }
+    });
+  }
+
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.getAttribute('data-filter');
+      renderSidePanel();
+    });
+  });
+
+  function renderSidePanel() {
+    const open = comments.filter(c => !c.resolved).length;
+    const resolved = comments.filter(c => c.resolved).length;
+    filterCountOpen.textContent = open;
+    filterCountResolved.textContent = resolved;
+    filterCountAll.textContent = comments.length;
+
+    let filtered;
+    if (currentFilter === 'open') filtered = comments.filter(c => !c.resolved);
+    else if (currentFilter === 'resolved') filtered = comments.filter(c => c.resolved);
+    else filtered = [...comments];
+
+    if (filtered.length === 0) {
+      const emptyMsg = currentFilter === 'open'
+        ? 'No open comments. Turn on Comment Mode and click any text to leave one.'
+        : currentFilter === 'resolved'
+          ? 'No resolved comments yet.'
+          : 'No comments yet. Turn on Comment Mode and click any text to leave one.';
+      commentsPanelBody.innerHTML = `<div class="comments-empty">${emptyMsg}</div>`;
+      return;
+    }
+
+    // Group by edit_id
+    const groups = {};
+    for (const c of filtered) {
+      if (!groups[c.edit_id]) groups[c.edit_id] = [];
+      groups[c.edit_id].push(c);
+    }
+
+    // Order groups by newest comment
+    const orderedEditIds = Object.keys(groups).sort((a, b) => {
+      const latestA = Math.max(...groups[a].map(c => new Date(c.created_at).getTime()));
+      const latestB = Math.max(...groups[b].map(c => new Date(c.created_at).getTime()));
+      return latestB - latestA;
+    });
+
+    commentsPanelBody.innerHTML = orderedEditIds.map(editId => {
+      const group = groups[editId];
+      const el = document.querySelector(`[data-edit-id="${editId}"]`);
+      const snippet = el ? truncate(el.innerText, 140) : '(removed element)';
+      const section = group[0].section || '—';
+      const openInGroup = group.filter(c => !c.resolved).length;
+      const countLabel = `${group.length} ${group.length === 1 ? 'comment' : 'comments'}${openInGroup && currentFilter !== 'open' ? ' · ' + openInGroup + ' open' : ''}`;
+      const sortedGroup = [...group].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      return `
+        <div class="comments-group" data-group-edit-id="${editId}">
+          <div class="comments-group-header" data-jump-edit-id="${editId}">
+            <div style="min-width:0;flex:1;">
+              <div class="comments-group-section">${escapeHtml(section)}</div>
+              <div class="comments-group-snippet">${escapeHtml(snippet)}</div>
+            </div>
+            <span class="comments-group-count">${countLabel}</span>
+          </div>
+          <div class="comments-group-body">
+            ${sortedGroup.map(c => renderCommentItemHTML(c)).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Wire jump-to-element
+    commentsPanelBody.querySelectorAll('[data-jump-edit-id]').forEach(h => {
+      h.addEventListener('click', () => {
+        const editId = h.getAttribute('data-jump-edit-id');
+        jumpToElement(editId);
+      });
+    });
+
+    // Wire resolve / reopen buttons within the panel
+    wireCommentItemButtons(commentsPanelBody);
+  }
+
+  function jumpToElement(editId) {
+    const el = document.querySelector(`[data-edit-id="${editId}"]`);
+    if (!el) { showToast('Source element not found', 'error'); return; }
+
+    // Activate the right tab if element is in a hidden one
+    const tabContent = el.closest('.tab-content');
+    if (tabContent && !tabContent.classList.contains('active')) {
+      const tabId = tabContent.id;
+      const tabBtn = document.querySelector(`.tab[data-tab="${tabId}"]`);
+      if (tabBtn) tabBtn.click();
+    }
+
+    // Delay scroll to allow tab switch + indicator reposition
+    setTimeout(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.remove('comment-flash');
+      // trigger reflow to restart animation
+      void el.offsetWidth;
+      el.classList.add('comment-flash');
+      setTimeout(() => el.classList.remove('comment-flash'), 1700);
+      renderIndicators();
+    }, 120);
+  }
+
+  function truncate(text, max) {
+    if (!text) return '';
+    text = text.replace(/\s+/g, ' ').trim();
+    return text.length > max ? text.slice(0, max) + '…' : text;
+  }
+
+  // ============ LOAD FROM SUPABASE ============
+  async function loadComments() {
+    if (!isConfigured) {
+      renderIndicators();
+      renderSidePanel();
+      return;
+    }
+    try {
+      const data = await api.select('playbook_comments', 'select=*&order=created_at.desc&limit=500');
+      comments = data || [];
+      renderIndicators();
+      renderSidePanel();
+    } catch (err) {
+      console.error('Load comments failed:', err);
+      showToast('Could not load comments: ' + (err?.message || 'unknown'), 'error');
+    }
+  }
+
+  // ============ INIT ============
+  function init() {
+    loadComments();
+    // Poll for updates every 30s (same cadence as edit history)
+    setInterval(loadComments, 30000);
+  }
+
+  // Wait a tick so the edit script finishes its init + any DOM is stable
+  setTimeout(init, 100);
 })();
 </script>
 
